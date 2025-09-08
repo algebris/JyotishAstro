@@ -37,11 +37,28 @@ export function LocationSearch({
   });
 
   // Поиск локаций с дебаунсом
-  const { data: locations = [], isLoading } = useQuery<Location[]>({
+  const locationQuery = useQuery<Location[]>({
     queryKey: ['/api/locations/search', search],
     enabled: search.length >= 2,
     staleTime: 5 * 60 * 1000, // 5 минут
   });
+
+  const locations = locationQuery.data || [];
+  const isLoading = locationQuery.isLoading;
+  const error = locationQuery.error;
+
+  // Логирование результатов
+  useEffect(() => {
+    if (locations && locations.length > 0) {
+      console.log('Location search results:', locations);
+    }
+  }, [locations]);
+
+  useEffect(() => {
+    if (error) {
+      console.error('Location search error:', error);
+    }
+  }, [error]);
 
   // Обновить selectedLocation когда получили currentLocation
   useEffect(() => {
@@ -119,7 +136,7 @@ export function LocationSearch({
               <CommandEmpty>
                 {isLoading ? "Поиск..." : search.length < 2 ? "Введите минимум 2 символа" : "Места не найдены"}
               </CommandEmpty>
-              {locations.length > 0 && (
+              {Array.isArray(locations) && locations.length > 0 && (
                 <CommandGroup>
                   {locations.map((location: Location) => (
                     <CommandItem

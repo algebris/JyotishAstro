@@ -29,7 +29,20 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    let url = queryKey[0] as string;
+    
+    // Special handling for location search
+    if (url === '/api/locations/search' && queryKey.length > 1) {
+      const searchQuery = queryKey[1] as string;
+      url = `${url}?q=${encodeURIComponent(searchQuery)}`;
+    } else if (queryKey.length > 1) {
+      // For other endpoints, use join
+      url = queryKey.join("/");
+    }
+    
+    console.log('Query URL:', url);
+    
+    const res = await fetch(url, {
       credentials: "include",
     });
 
@@ -38,7 +51,9 @@ export const getQueryFn: <T>(options: {
     }
 
     await throwIfResNotOk(res);
-    return await res.json();
+    const data = await res.json();
+    console.log('Query response:', data);
+    return data;
   };
 
 export const queryClient = new QueryClient({
