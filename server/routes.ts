@@ -2,7 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { insertFolderSchema, insertChartSchema } from "@shared/schema";
+import { insertFolderSchema, insertChartSchema, insertLocationSchema } from "@shared/schema";
+import { geocodingService } from "./geocoding";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -169,6 +170,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting chart:", error);
       res.status(500).json({ message: "Failed to delete chart" });
+    }
+  });
+
+  // Location routes
+  app.get('/api/locations/search', isAuthenticated, async (req: any, res) => {
+    try {
+      const { q: query } = req.query;
+      
+      if (!query || typeof query !== 'string' || query.trim().length < 2) {
+        res.json([]);
+        return;
+      }
+
+      // Сначала ищем в локальной базе
+      const localResults = await storage.searchLocations(query as string);
+      
+      // Если найдено менее 3 результатов, ищем через геокодинг API
+      if (localResults.length < 3) {
+        const geoResults = await geocodingService.searchPlaces(query as string, 5);
+        
+        // Создаем локации для новых результатов
+        const newLocations = [];
+        for (const result of geoResults) {
+          try {
+            const timezone = await geocodingService.getTimezone(result.latitude, result.longitude);
+            
+            const location = await storage.createLocation({
+              name: result.name,
+              displayName: result.displayName,
+              latitude: result.latitude.toString(),
+              longitude: result.longitude.toString(),
+              timezone: timezone.timezone,
+              utcOffset: timezone.utcOffset,
+              country: result.country || null,
+              region: result.region || null,
+            });
+            
+            newLocations.push(location);
+          } catch (error) {
+            console.error('Error creating location:', error);
+          }
+        }
+        
+        // Объединяем результаты, избегая дубликатов
+        const allResults = [...localResults];
+        for (const newLoc of newLocations) {
+          const isDuplicate = allResults.some(existing => 
+            Math.abs(parseFloat(existing.latitude) - parseFloat(newLoc.latitude)) < 0.01 &&
+            Math.abs(parseFloat(existing.longitude) - parseFloat(newLoc.longitude)) < 0.01
+          );
+          if (!isDuplicate) {
+            allResults.push(newLoc);
+          }
+        }
+        
+        res.json(allResults.slice(0, 10));
+      } else {
+        res.json(localResults.slice(0, 10));
+      }
+    } catch (error) {
+      console.error("Error searching locations:", error);
+      res.status(500).json({ message: "Failed to search locations" });
+    }
+  });
+
+  app.get('/api/locations/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const location = await storage.getLocationById(id);
+      if (!location) {
+        res.status(404).json({ message: "Location not found" });
+        return;
+      }
+      res.json(location);
+    } catch (error) {
+      console.error("Error fetching location:", error);
+      res.status(500).json({ message: "Failed to fetch location" });
     }
   });
 

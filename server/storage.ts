@@ -2,12 +2,15 @@ import {
   users,
   folders,
   charts,
+  locations,
   type User,
   type UpsertUser,
   type Folder,
   type InsertFolder,
   type Chart,
   type InsertChart,
+  type Location,
+  type InsertLocation,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -24,6 +27,11 @@ export interface IStorage {
   updateFolder(id: string, updates: Partial<Folder>): Promise<Folder | undefined>;
   deleteFolder(id: string): Promise<boolean>;
   
+  // Location operations
+  getLocationById(id: string): Promise<Location | undefined>;
+  searchLocations(query: string): Promise<Location[]>;
+  createLocation(location: InsertLocation): Promise<Location>;
+  
   // Chart operations
   getChartsByUserId(userId: string): Promise<Chart[]>;
   getChartsByFolderId(folderId: string): Promise<Chart[]>;
@@ -38,11 +46,13 @@ export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private folders: Map<string, Folder>;
   private charts: Map<string, Chart>;
+  private locations: Map<string, Location>;
 
   constructor() {
     this.users = new Map();
     this.folders = new Map();
     this.charts = new Map();
+    this.locations = new Map();
   }
 
   // User operations
@@ -89,6 +99,30 @@ export class MemStorage implements IStorage {
 
   async deleteFolder(id: string): Promise<boolean> {
     return this.folders.delete(id);
+  }
+
+  // Location operations
+  async getLocationById(id: string): Promise<Location | undefined> {
+    return this.locations.get(id);
+  }
+
+  async searchLocations(query: string): Promise<Location[]> {
+    const lowerQuery = query.toLowerCase();
+    return Array.from(this.locations.values()).filter(location =>
+      location.name.toLowerCase().includes(lowerQuery) ||
+      location.displayName.toLowerCase().includes(lowerQuery)
+    );
+  }
+
+  async createLocation(locationData: InsertLocation): Promise<Location> {
+    const location: Location = {
+      ...locationData,
+      id: randomUUID(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.locations.set(location.id, location);
+    return location;
   }
 
   // Chart operations
