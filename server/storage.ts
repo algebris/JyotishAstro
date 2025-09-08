@@ -107,6 +107,7 @@ export class MemStorage implements IStorage {
   async createChart(chartData: InsertChart & { userId: string }): Promise<Chart> {
     const chart: Chart = {
       ...chartData,
+      notes: chartData.notes || null,
       id: randomUUID(),
       createdAt: new Date(),
       updatedAt: new Date(),

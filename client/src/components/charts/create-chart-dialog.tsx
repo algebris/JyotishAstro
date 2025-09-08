@@ -36,7 +36,7 @@ export default function CreateChartDialog({ open, onOpenChange, folders }: Creat
     mutationFn: async (chartData: typeof formData) => {
       const validatedData = insertChartSchema.parse({
         ...chartData,
-        folderId: chartData.folderId || null,
+        folderId: chartData.folderId === "no-folder" ? null : chartData.folderId || null,
       });
       await apiRequest("POST", "/api/charts", validatedData);
     },
@@ -132,7 +132,7 @@ export default function CreateChartDialog({ open, onOpenChange, folders }: Creat
                     <SelectValue placeholder="Select folder..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No folder</SelectItem>
+                    <SelectItem value="no-folder">No folder</SelectItem>
                     {folders.map((folder) => (
                       <SelectItem key={folder.id} value={folder.id}>
                         {folder.name}
