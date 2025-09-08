@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { insertChartSchema } from "@shared/schema";
-import { MapPin } from "lucide-react";
+import { LocationSearch } from "@/components/location/location-search";
 import type { Chart, Folder } from "@shared/schema";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
@@ -26,6 +26,7 @@ export default function EditChartDialog({ open, onOpenChange, chart, folders }: 
     birthDate: "",
     birthTime: "",
     birthPlace: "",
+    locationId: null as string | null,
     notes: "",
     folderId: "",
   });
@@ -41,6 +42,7 @@ export default function EditChartDialog({ open, onOpenChange, chart, folders }: 
         birthDate: chart.birthDate,
         birthTime: chart.birthTime,
         birthPlace: chart.birthPlace,
+        locationId: chart.locationId || null,
         notes: chart.notes || "",
         folderId: chart.folderId || "no-folder",
       });
@@ -89,7 +91,7 @@ export default function EditChartDialog({ open, onOpenChange, chart, folders }: 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.clientName.trim() || !formData.birthDate || !formData.birthTime || !formData.birthPlace.trim()) {
+    if (!formData.clientName.trim() || !formData.birthDate || !formData.birthTime || (!formData.locationId && !formData.birthPlace.trim())) {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields",
@@ -181,21 +183,15 @@ export default function EditChartDialog({ open, onOpenChange, chart, folders }: 
             </div>
             
             <div className="mt-4">
-              <Label htmlFor="edit-birth-place">Birth Place *</Label>
-              <div className="relative">
-                <Input
-                  id="edit-birth-place"
-                  type="text"
-                  placeholder="Search for city, state, country..."
-                  value={formData.birthPlace}
-                  onChange={(e) => handleInputChange("birthPlace", e.target.value)}
-                  required
-                  data-testid="input-edit-birth-place"
-                />
-                <MapPin className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
-              </div>
+              <Label htmlFor="edit-birth-place">Место рождения *</Label>
+              <LocationSearch
+                value={formData.locationId}
+                onChange={(locationId) => handleInputChange("locationId", locationId || "")}
+                placeholder="Поиск города или места рождения..."
+                required
+              />
               <p className="text-xs text-muted-foreground mt-1">
-                Enter the full birth location (e.g., "Mumbai, Maharashtra, India")
+                Поиск автоматически сохранит координаты и часовой пояс
               </p>
             </div>
           </div>
