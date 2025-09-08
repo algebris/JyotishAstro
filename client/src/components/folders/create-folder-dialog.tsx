@@ -12,9 +12,10 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 interface CreateFolderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
-export default function CreateFolderDialog({ open, onOpenChange }: CreateFolderDialogProps) {
+export default function CreateFolderDialog({ open, onOpenChange, onSuccess }: CreateFolderDialogProps) {
   const [name, setName] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -33,6 +34,10 @@ export default function CreateFolderDialog({ open, onOpenChange }: CreateFolderD
       });
       setName("");
       onOpenChange(false);
+      // Вызываем коллбек если он передан
+      if (onSuccess) {
+        onSuccess();
+      }
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {

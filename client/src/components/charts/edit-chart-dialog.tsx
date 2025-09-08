@@ -10,6 +10,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { insertChartSchema } from "@shared/schema";
 import { LocationSearch } from "@/components/location/location-search";
+import CreateFolderDialog from "@/components/folders/create-folder-dialog";
+import { Plus } from "lucide-react";
 import type { Chart, Folder } from "@shared/schema";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
@@ -30,6 +32,8 @@ export default function EditChartDialog({ open, onOpenChange, chart, folders }: 
     notes: "",
     folderId: "",
   });
+
+  const [createFolderOpen, setCreateFolderOpen] = useState(false);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -106,6 +110,22 @@ export default function EditChartDialog({ open, onOpenChange, chart, folders }: 
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  // Обработчик успешного создания папки
+  const handleFolderCreated = () => {
+    // Обновляем список папок и выбираем новую папку
+    queryClient.invalidateQueries({ queryKey: ["/api/folders"] }).then(() => {
+      // После обновления данных найдем самую новую папку и выберем её
+      const updatedFolders = queryClient.getQueryData(["/api/folders"]) as Folder[] | undefined;
+      if (updatedFolders && updatedFolders.length > 0) {
+        // Сортируем по дате создания и берем последнюю
+        const newestFolder = [...updatedFolders].sort((a, b) => 
+          new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+        )[0];
+        handleInputChange("folderId", newestFolder.id);
+      }
+    });
+  };
+
   if (!chart) return null;
 
   return (
@@ -134,22 +154,34 @@ export default function EditChartDialog({ open, onOpenChange, chart, folders }: 
               </div>
               <div>
                 <Label htmlFor="edit-folder">Folder</Label>
-                <Select 
-                  value={formData.folderId} 
-                  onValueChange={(value) => handleInputChange("folderId", value)}
-                >
-                  <SelectTrigger data-testid="select-edit-folder">
-                    <SelectValue placeholder="Select folder..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="no-folder">No folder</SelectItem>
-                    {folders.map((folder) => (
-                      <SelectItem key={folder.id} value={folder.id}>
-                        {folder.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Select 
+                    value={formData.folderId} 
+                    onValueChange={(value) => handleInputChange("folderId", value)}
+                  >
+                    <SelectTrigger data-testid="select-edit-folder" className="flex-1">
+                      <SelectValue placeholder="Select folder..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="no-folder">No folder</SelectItem>
+                      {folders.map((folder) => (
+                        <SelectItem key={folder.id} value={folder.id}>
+                          {folder.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCreateFolderOpen(true)}
+                    title="Создать новую папку"
+                    data-testid="button-create-folder-edit-inline"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -231,6 +263,13 @@ export default function EditChartDialog({ open, onOpenChange, chart, folders }: 
           </div>
         </form>
       </DialogContent>
+      
+      {/* Диалог создания папки */}
+      <CreateFolderDialog 
+        open={createFolderOpen} 
+        onOpenChange={setCreateFolderOpen}
+        onSuccess={handleFolderCreated}
+      />
     </Dialog>
   );
 }
