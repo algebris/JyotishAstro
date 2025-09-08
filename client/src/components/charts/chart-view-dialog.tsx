@@ -66,9 +66,13 @@ export default function ChartViewDialog({ open, onOpenChange, chart }: ChartView
   };
 
   const handleEdit = () => {
+    // Закрываем текущий диалог просмотра и открываем диалог редактирования
+    onOpenChange(false);
+    // Здесь нужно будет передать состояние в родительский компонент
+    // Пока что просто показываем тост
     toast({
-      title: "Coming Soon",
-      description: "Chart editing functionality will be available soon.",
+      title: "Edit Mode",
+      description: "Use the edit button on the chart card to edit the chart.",
     });
   };
 

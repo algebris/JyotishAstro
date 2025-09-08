@@ -93,7 +93,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let charts;
       if (search) {
         charts = await storage.searchChartsByName(userId, search as string);
-      } else if (folderId) {
+      } else if (folderId && folderId !== 'undefined') {
         charts = await storage.getChartsByFolderId(folderId as string);
       } else {
         charts = await storage.getChartsByUserId(userId);

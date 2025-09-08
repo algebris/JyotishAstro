@@ -9,7 +9,7 @@ interface FolderCardProps {
 
 export default function FolderCard({ folder }: FolderCardProps) {
   const { data: charts = [] } = useQuery<Chart[]>({
-    queryKey: ["/api/charts", { folderId: folder.id }],
+    queryKey: ["/api/charts", "folder", folder.id],
   });
 
   const chartCount = charts.length;

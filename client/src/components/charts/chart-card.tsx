@@ -4,9 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Eye, Edit, Trash } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import ChartViewDialog from "./chart-view-dialog";
+import EditChartDialog from "./edit-chart-dialog";
 import type { Chart, Folder } from "@shared/schema";
+import { isUnauthorizedError } from "@/lib/authUtils";
 
 interface ChartCardProps {
   chart: Chart;
@@ -14,6 +18,9 @@ interface ChartCardProps {
 
 export default function ChartCard({ chart }: ChartCardProps) {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: folders = [] } = useQuery<Folder[]>({
     queryKey: ["/api/folders"],
@@ -31,6 +38,44 @@ export default function ChartCard({ chart }: ChartCardProps) {
   const createdDate = chart.createdAt 
     ? new Date(chart.createdAt).toLocaleDateString()
     : "Unknown";
+
+  const deleteChartMutation = useMutation({
+    mutationFn: async (chartId: string) => {
+      await apiRequest("DELETE", `/api/charts/${chartId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/charts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      toast({
+        title: "Success",
+        description: "Chart deleted successfully",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to delete chart. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDelete = () => {
+    if (window.confirm(`Are you sure you want to delete the chart for ${chart.clientName}? This action cannot be undone.`)) {
+      deleteChartMutation.mutate(chart.id);
+    }
+  };
 
   return (
     <>
@@ -61,6 +106,7 @@ export default function ChartCard({ chart }: ChartCardProps) {
                     <Button
                       variant="ghost"
                       size="sm"
+                      onClick={() => setEditDialogOpen(true)}
                       data-testid="button-edit-chart"
                     >
                       <Edit className="h-4 w-4" />
@@ -68,6 +114,8 @@ export default function ChartCard({ chart }: ChartCardProps) {
                     <Button
                       variant="ghost"
                       size="sm"
+                      onClick={handleDelete}
+                      disabled={deleteChartMutation.isPending}
                       data-testid="button-delete-chart"
                     >
                       <Trash className="h-4 w-4" />
@@ -100,6 +148,13 @@ export default function ChartCard({ chart }: ChartCardProps) {
         open={viewDialogOpen}
         onOpenChange={setViewDialogOpen}
         chart={chart}
+      />
+
+      <EditChartDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        chart={chart}
+        folders={folders}
       />
     </>
   );
