@@ -178,22 +178,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { q: query } = req.query;
       
+      console.log(`Location search request: "${query}"`);
+      
       if (!query || typeof query !== 'string' || query.trim().length < 2) {
+        console.log('Query too short, returning empty array');
         res.json([]);
         return;
       }
 
       // Сначала ищем в локальной базе
       const localResults = await storage.searchLocations(query as string);
+      console.log(`Found ${localResults.length} local results`);
       
       // Если найдено менее 3 результатов, ищем через геокодинг API
       if (localResults.length < 3) {
+        console.log('Searching via geocoding API...');
         const geoResults = await geocodingService.searchPlaces(query as string, 5);
+        console.log(`Geocoding API returned ${geoResults.length} results`);
         
         // Создаем локации для новых результатов
         const newLocations = [];
         for (const result of geoResults) {
           try {
+            console.log(`Processing geocoding result: ${result.displayName}`);
             const timezone = await geocodingService.getTimezone(result.latitude, result.longitude);
             
             const location = await storage.createLocation({
@@ -208,6 +215,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             
             newLocations.push(location);
+            console.log(`Created location: ${location.displayName}`);
           } catch (error) {
             console.error('Error creating location:', error);
           }
@@ -225,8 +233,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
+        console.log(`Returning ${allResults.length} total results`);
         res.json(allResults.slice(0, 10));
       } else {
+        console.log('Using only local results');
         res.json(localResults.slice(0, 10));
       }
     } catch (error) {
